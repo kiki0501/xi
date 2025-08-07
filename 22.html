@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统控制台 - 修仙世界操纵者</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background-color: #f4f3ee;
+            color: #6d6a75;
+            overflow: hidden;
+            height: 100vh;
+        }
+        .status-bar {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 12px;
+            height: auto;
+            background: none;
+            border: none;
+            padding: 0;
+            box-shadow: none;
+            margin-bottom: 8px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .system-level, .level-badge, .exp-bar, .exp-fill { display: none !important; }
+        .status-indicators { display: flex; gap: 30px; }
+        .indicator { text-align: center; }
+        .indicator-label { font-size: 12px; opacity: 0.7; }
+        .indicator-value { font-size: 24px; font-weight: bold; }
+        .trust-meter { color: #b5aacb; }
+        .backlash-meter { color: #d8b4a6; }
+        .points-display { background: rgba(181, 170, 203, 0.1); border: 1px solid #b5aacb; padding: 10px 20px; border-radius: 5px; }
+        .tab-bar { display: flex; justify-content: center; align-items: center; background: linear-gradient(90deg, #b5aacb 0%, #f4f3ee 100%); border-bottom: 2px solid #b8a398; height: 48px; }
+        .tab-btn { background: none; border: none; color: #b5aacb; font-size: 18px; padding: 10px 32px; cursor: pointer; transition: background 0.2s, color 0.2s; border-radius: 8px 8px 0 0; margin: 0 8px; outline: none; }
+        .tab-btn.active, .tab-btn:hover { background: #b5aacb; color: #f4f3ee; }
+        .tab-content { width: 90vw; max-width: 1200px; margin: 24px auto 0 auto; background: rgba(181, 170, 203, 0.10); border: 1.5px solid #b5aacb; border-radius: 10px; min-height: 70vh; max-height: calc(100vh - 60px - 48px - 32px); box-shadow: 0 0 24px #b5aacb40; overflow-y: auto; overflow-x: hidden; padding: 32px 32px 24px 32px; position: relative; -webkit-overflow-scrolling: touch; }
+        .left-panel, .center-panel, .right-panel { width: 100% !important; background: none; border: none; padding: 0; overflow: visible; }
+        .left-panel .tool-section, .right-panel .tool-section { margin-bottom: 30px; }
+        .section-title { color: #a3b1c6; margin-bottom: 15px; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; }
+        .tool-button { width: 100%; padding: 12px; margin-bottom: 10px; background: rgba(181, 170, 203, 0.1); border: 1px solid #b5aacb; color: #b5aacb; cursor: pointer; transition: all 0.3s ease; font-size: 14px; }
+        .tool-button:hover { background: rgba(181, 170, 203, 0.45); transform: translateX(5px); }
+        .tool-button.locked { opacity: 0.3; cursor: not-allowed; border-color: #bfc1c2; color: #bfc1c2; }
+        .tool-button.danger { border-color: #d8b4a6; color: #d8b4a6; }
+        .scene-window { background: rgba(163, 177, 198, 0.2); border: 1px solid #a3b1c6; padding: 20px; margin-bottom: 20px; border-radius: 5px; }
+        .scene-title { color: #a3b1c6; margin-bottom: 10px; font-size: 20px; }
+        .scene-description { color: #6d6a75; line-height: 1.6; margin-bottom: 15px; }
+        .protagonist-thoughts { background: rgba(216, 180, 166, 0.10); padding: 15px; border-left: 3px solid #d8b4a6; margin: 15px 0; font-style: italic; color: #d8b4a6; }
+        .choice-preview { margin-top: 20px; }
+        .choice-option { background: rgba(183, 190, 156, 0.10); border: 1px solid #b7be9c; padding: 15px; margin-bottom: 10px; cursor: pointer; position: relative; transition: all 0.3s ease; }
+        .choice-option:hover { background: #b5aacb; color: #fff; }
+        .choice-text { color: #4d4d4d; margin-bottom: 5px; }
+        .choice-consequences { font-size: 12px; color: #7d9272; opacity: 0.85; }
+        .trust-impact { position: absolute; right: 15px; top: 15px; font-weight: bold; }
+        .trust-positive { color: #7d9272; }
+        .trust-negative { color: #b7be9c; }
+        .npc-thoughts { background: rgba(183, 190, 156, 0.10); border: 1px solid #b7be9c; padding: 15px; margin-bottom: 15px; border-radius: 5px; }
+        .npc-name { color: #7d9272; font-weight: bold; margin-bottom: 5px; }
+        .npc-thought { color: #4d4d4d; font-size: 14px; font-style: italic; }
+        .hidden-info { background: rgba(183, 190, 156, 0.10); border: 1px solid #b7be9c; padding: 10px; margin-bottom: 10px; font-size: 14px; }
+        .world-event { background: rgba(183, 190, 156, 0.10); border-left: 3px solid #b7be9c; padding: 10px; margin-bottom: 10px; font-size: 14px; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #e5e7da; }
+        ::-webkit-scrollbar-thumb { background: #b7be9c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a9b7a0; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        @keyframes dataflow { 0% { transform: translateY(0); } 100% { transform: translateY(100px); } }
+        .data-stream { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0.1; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="20" font-size="10" fill="%23b7be9c" opacity="0.5">01001010</text></svg>'); animation: dataflow 20s linear infinite; }
+        @media (max-width: 900px) {
+            .tab-content { width: 98vw; max-width: 100vw; padding: 12px 4vw 16px 4vw; font-size: 15px; }
+            .tab-bar { height: 44px; }
+            .tab-btn { font-size: 15px; padding: 8px 10px; margin: 0 2px; }
+            .scene-title { font-size: 17px; }
+            .section-title { font-size: 15px; }
+            .tool-button { font-size: 13px; padding: 10px; }
+        }
+        @media (max-width: 600px) {
+            .tab-content { width: 100vw; max-width: 100vw; min-height: 60vh; max-height: calc(100vh - 60px - 44px - 10px); padding: 8px 2vw 12px 2vw; font-size: 13px; }
+            .tab-bar { height: 40px; }
+            .tab-btn { font-size: 13px; padding: 6px 4px; }
+            .scene-title { font-size: 15px; }
+            .section-title { font-size: 13px; }
+            .tool-button { font-size: 12px; padding: 8px; }
+            .status-indicators { flex-direction: column; gap: 8px; align-items: flex-start; }
+            .indicator-label { font-size: 11px; }
+            .indicator-value { font-size: 18px; }
+            .points-display { padding: 6px 10px; font-size: 13px; }
+            .status-bar { flex-direction: column; height: auto; padding: 6px 4px; }
+            .system-level { flex-direction: column; gap: 4px; }
+            .exp-bar { width: 100px; }
+            .level-badge { font-size: 13px; padding: 3px 10px; }
+            .status-indicators { width: 100%; }
+            .status-bar { flex-direction: row; height: auto; padding: 4px 2vw 4px 2vw; align-items: flex-end; }
+            .system-level { flex-direction: column; gap: 2px; }
+            .exp-bar { width: 80px; }
+            .level-badge { font-size: 12px; padding: 2px 8px; }
+            .status-indicators { flex-direction: row; gap: 8px; width: auto; }
+            .status-indicators .indicator:nth-child(2) { display: none; }
+            .indicator-label { font-size: 11px; }
+            .indicator-value { font-size: 16px; }
+            .points-display { padding: 4px 8px; font-size: 12px; }
+            .tab-bar { margin-top: 2px; }
+        }
+        .tab-content::-webkit-scrollbar { width: 8px; background: #e5e7da; }
+        .tab-content::-webkit-scrollbar-thumb { background: #b7be9c; border-radius: 4px; }
+        .tab-content::-webkit-scrollbar-thumb:hover { background: #a9b7a0; }
+        .tab-content { scrollbar-width: thin; scrollbar-color: #b7be9c #e5e7da; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; }
+        .modal-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #e5e7da; border: 2px solid #b7be9c; padding: 30px; border-radius: 10px; min-width: 400px; }
+        .modal-title { color: #7d9272; font-size: 24px; margin-bottom: 20px; }
+        .modal-body { color: #4d4d4d; margin-bottom: 20px; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .choice-option:hover .choice-consequences {
+            color: #4d4d4d !important;
+        }
+        .choice-option:hover .trust-impact {
+            color: #4d4d4d !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="data-stream"></div>
+    <div class="status-bar">
+        <div class="system-level">
+            <div class="level-badge">系统 Lv.3</div>
+            <div class="exp-bar"><div class="exp-fill"></div></div>
+            <span style="font-size: 12px; opacity: 0.7;">2450/5000 EXP</span>
+        </div>
+        <div class="status-indicators">
+            <div class="indicator">
+                <div class="indicator-label">主角信任度</div>
+                <div class="indicator-value trust-meter">78%</div>
+            </div>
+            <div class="indicator">
+                <div class="indicator-label">世界反噬值</div>
+                <div class="indicator-value backlash-meter">⚠ 45</div>
+            </div>
+            <div class="indicator points-display">
+                <div class="indicator-label">可用积分</div>
+                <div class="indicator-value">12,500</div>
+            </div>
+        </div>
+    </div>
+    <div class="tab-bar">
+        <button class="tab-btn" data-tab="left">工具面板</button>
+        <button class="tab-btn active" data-tab="center">主角窗口</button>
+        <button class="tab-btn" data-tab="right">全知面板</button>
+    </div>
+    <div class="tab-content">
+        <!-- 工具面板 -->
+        <div class="left-panel tab-panel" data-tab="left" style="display: none;">
+            <div class="tool-section">
+                <h3 class="section-title">信息操控</h3>
+                <button class="tool-button" onclick="showInfoControl()">透露信息</button>
+                <button class="tool-button" onclick="hideInfo()">隐藏真相</button>
+                <button class="tool-button danger" onclick="mislead()">误导主角</button>
+                <button class="tool-button" onclick="staySilent()">保持沉默</button>
+            </div>
+            <div class="tool-section">
+                <h3 class="section-title">系统干预</h3>
+                <button class="tool-button" onclick="viewStats()">查看属性</button>
+                <button class="tool-button" onclick="openShop()">打开商城</button>
+                <button class="tool-button" onclick="pauseTime()">暂停时间</button>
+                <button class="tool-button" id="memoryEditBtn">记忆编辑</button>
+                <button class="tool-button" onclick="timeRewind()">时光回溯</button>
+                <button class="tool-button" onclick="materialize()">实体化</button>
+            </div>
+            <div class="tool-section">
+                <h3 class="section-title">快捷操作</h3>
+                <button class="tool-button" onclick="createTask()">发布任务</button>
+                <button class="tool-button" onclick="checkAnchors()">时间锚点</button>
+                <button class="tool-button" onclick="viewLogs()">系统日志</button>
+            </div>
+        </div>
+        <!-- 主角窗口 -->
+        <div class="center-panel tab-panel" data-tab="center" style="display: block;">
+            <div class="scene-window">
+                <h2 class="scene-title">【青云宗·外门广场】</h2>
+                <div class="scene-description">
+                    晨雾缭绕的广场上，数百名外门弟子正在晨练。主角站在人群边缘，看着远处内门的方向若有所思。
+                    一个身影正快速接近——是外门管事李长风。
+                </div>
+                <div class="protagonist-thoughts">
+                    💭 主角内心：「李长风突然找我，难道是因为昨天我展现的剑法？不，我明明已经刻意隐藏了实力...」
+                </div>
+                <div class="npc-dialogue" style="background: rgba(0,100,200,0.1); padding: 15px; border-radius: 5px; margin: 15px 0;">
+                    <strong style="color: #a3b1c6;">李长风：</strong>
+                    <span style="color: #6d6a75;">"林凡，掌门有令，让你即刻前往主峰大殿。记住，问什么答什么，不要多说。"</span>
+                </div>
+                <div class="choice-preview">
+                    <h3 style="color: #b5aacb; margin-bottom: 15px;">主角选择预览：</h3>
+                    <div class="choice-option" onclick="handleChoice(1)">
+                        <div class="choice-text" style="color: #4d4d4d;">1. "是，弟子这就前往。"</div>
+                        <div class="choice-consequences" style="color: #b5aacb;">→ 顺从表现，降低怀疑 | 可能错过重要信息</div>
+                        <span class="trust-impact trust-positive" style="color: #b5aacb;">信任度 +5</span>
+                    </div>
+                    <div class="choice-option" onclick="handleChoice(2)">
+                        <div class="choice-text" style="color: #4d4d4d;">2. "敢问管事，掌门召见所为何事？"</div>
+                        <div class="choice-consequences" style="color: #b5aacb;">→ 可能获得线索 | 显得过于机警</div>
+                        <span class="trust-impact trust-negative" style="color: #d8b4a6;">信任度 -2</span>
+                    </div>
+                    <div class="choice-option" onclick="handleChoice(3)">
+                        <div class="choice-text" style="color: #4d4d4d;">3. "我需要准备什么吗？这是否与昨日之事有关？"</div>
+                        <div class="choice-consequences" style="color: #b5aacb;">→ 暴露知情 | 李长风怀疑值 +15</div>
+                        <span class="trust-impact trust-negative" style="color: #d8b4a6;">信任度 -8</span>
+                    </div>
+                </div>
+            </div>
+            <div class="system-intervention" style="background: rgba(0,255,136,0.1); border: 2px dashed #00ff88; padding: 20px; margin-top: 20px;">
+                <h3 style="color: #b5aacb; margin-bottom: 10px;">🎮 系统介入选项</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <button class="tool-button" style="background:rgba(181,170,203,0.12);border:1px solid #b5aacb;color:#b5aacb;" onclick="provideHint()">
+                        💡 提供提示
+                        <span id="hintCost" style="font-size: 12px; display: block; opacity: 0.7; color:#b5aacb;">消耗: 100积分</span>
+                    </button>
+                    <button class="tool-button" style="background:rgba(181,170,203,0.12);border:1px solid #b5aacb;color:#b5aacb;" onclick="revealTruth()">
+                        👁️ 揭示真相
+                        <span id="truthCost" style="font-size: 12px; display: block; opacity: 0.7; color:#b5aacb;">消耗: 500积分 | 反噬+10</span>
+                    </button>
+                    <button class="tool-button danger" style="border-color:#d8b4a6;color:#d8b4a6;background:rgba(216,180,166,0.10);" onclick="misleadNow()">
+                        🎭 误导主角
+                        <span style="font-size: 12px; display: block; opacity: 0.7; color:#d8b4a6;">信任度-10</span>
+                    </button>
+                    <button class="tool-button" style="background:rgba(181,170,203,0.12);border:1px solid #b5aacb;color:#b5aacb;" onclick="stayQuiet()">
+                        🤐 保持沉默
+                        <span style="font-size: 12px; display: block; opacity: 0.7; color:#b5aacb;">无消耗</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- 全知面板 -->
+        <div class="right-panel tab-panel" data-tab="right" style="display: none;">
+            <div class="tool-section">
+                <h3 class="section-title">NPC真实想法</h3>
+                <div class="npc-thoughts">
+                    <div class="npc-name">李长风 [怀疑度: 35%]</div>
+                    <div class="npc-thought">
+                        "这小子昨天那一剑...绝不是外门弟子该有的造诣。掌门突然召见，恐怕也是察觉到了什么。我得小心观察他的反应。"
+                    </div>
+                </div>
+                <div class="npc-thoughts">
+                    <div class="npc-name">暗中观察者 - 内门执事赵明</div>
+                    <div class="npc-thought">
+                        "有意思，掌门竟然亲自召见一个外门弟子。看来我的情报没错，这个林凡确实有古怪。"
+                    </div>
+                </div>
+            </div>
+            <div class="tool-section">
+                <h3 class="section-title">隐藏信息</h3>
+                <div class="hidden-info">
+                    <strong>🔴 机密：</strong>掌门已经通过天机推演发现主角身负异宝，此次召见是一次试探。
+                </div>
+                <div class="hidden-info">
+                    <strong>🔴 危险：</strong>魔门间谍已潜入青云宗，正在寻找身负"天道种子"之人。
+                </div>
+            </div>
+            <div class="tool-section">
+                <h3 class="section-title">世界暗流</h3>
+                <div class="world-event">
+                    <strong>【妖族动向】</strong><br>
+                    白泽一脉正在集结力量，三日后将有大动作。
+                </div>
+                <div class="world-event">
+                    <strong>【皇族密令】</strong><br>
+                    三皇子已派出密探调查各大宗门天才弟子。
+                </div>
+                <div class="world-event">
+                    <strong>【天机异动】</strong><br>
+                    天机阁检测到命运线出现扰动，源头指向青云宗。
+                </div>
+            </div>
+            <div class="tool-section">
+                <h3 class="section-title">因果预测</h3>
+                <div style="background: rgba(255,255,0,0.1); padding: 15px; border-radius: 5px;">
+                    <div style="margin-bottom: 10px;">
+                        <strong>选择1后果：</strong>安全通过，但错过获知掌门真实意图的机会
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <strong>选择2后果：</strong>李长风会透露"与你的天赋有关"
+                    </div>
+                    <div>
+                        <strong>选择3后果：</strong>触发李长风警觉事件，可能导致后续监视
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="intervention-prompt" onclick="showInterventionMenu()">
+        ⚡ 检测到关键剧情点，是否介入？
+    </div>
+    <!-- 信息控制弹窗 -->
+    <div id="infoControlModal" class="modal">
+        <div class="modal-content">
+            <h2 class="modal-title">信息透露控制</h2>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px;">选择要告诉主角的信息：</p>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="info1">
+                        <span>李长风对你有所怀疑（低价值信息）</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="info2">
+                        <span>掌门此次召见是为了试探你（中价值信息）</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="info3">
+                        <span>掌门已知你身负异宝（高价值信息）</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="info4">
+                        <span>宗门内有魔门间谍（危险信息）</span>
+                    </label>
+                </div>
+                <div style="margin-top: 20px; padding: 10px; background: rgba(255,170,0,0.2); border-radius: 5px;">
+                    <strong>预计影响：</strong>
+                    <div id="infoImpact">请选择要透露的信息</div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="tool-button" onclick="confirmInfoReveal()">确认透露</button>
+                <button class="tool-button" onclick="closeModal('infoControlModal')">取消</button>
+            </div>
+        </div>
+    </div>
+    <!-- 商城弹窗 -->
+    <div id="shopModal" class="modal">
+        <div class="modal-content" style="min-width: 600px;">
+            <h2 class="modal-title">系统商城 - 后台控制</h2>
+            <div class="modal-body">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                    <div class="shop-item" style="background: rgba(0,255,136,0.1); padding: 15px; border: 1px solid #00ff88; border-radius: 5px;">
+                        <h4 style="color: #00ff88;">洞察符</h4>
+                        <p style="font-size: 14px; margin: 10px 0;">查看NPC好感度</p>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>500积分</span>
+                            <button class="tool-button" style="padding: 5px 10px;" onclick="setPrice('item1')">改价</button>
+                        </div>
+                    </div>
+                    <div class="shop-item" style="background: rgba(0,255,136,0.1); padding: 15px; border: 1px solid #00ff88; border-radius: 5px;">
+                        <h4 style="color: #00ff88;">记忆模糊丹</h4>
+                        <p style="font-size: 14px; margin: 10px 0;">让NPC忘记一件小事</p>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>2000积分</span>
+                            <button class="tool-button" style="padding: 5px 10px;" onclick="setPrice('item2')">改价</button>
+                        </div>
+                    </div>
+                    <div class="shop-item" style="background: rgba(255,100,100,0.1); padding: 15px; border: 1px solid #ff6666; border-radius: 5px;">
+                        <h4 style="color: #ff6666;">命运偏移卡</h4>
+                        <p style="font-size: 14px; margin: 10px 0;">改变一次剧情走向</p>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>10000积分</span>
+                            <button class="tool-button locked" style="padding: 5px 10px;">未解锁</button>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 20px; padding: 15px; background: rgba(255,255,0,0.1); border-radius: 5px;">
+                    <strong>商城操作：</strong>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button class="tool-button" onclick="createSale()">制造限时优惠</button>
+                        <button class="tool-button" onclick="hideItems()">隐藏部分商品</button>
+                        <button class="tool-button danger" onclick="createFakeUrgency()">制造缺货假象</button>
+                        <button class="tool-button" onclick="showAddProductModal()" style="background:rgba(0,255,136,0.15);color:#00ff88;">上架新商品</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="tool-button" onclick="closeModal('shopModal')">关闭</button>
+            </div>
+        </div>
+    </div>
+    <!-- 编辑商品弹窗 -->
+    <div id="editProductModal" class="modal">
+        <div class="modal-content" style="min-width:400px;">
+            <h2 class="modal-title">编辑商品</h2>
+            <div class="modal-body">
+                <div style="margin-bottom:10px;">
+                    <label>商品名称</label>
+                    <input type="text" id="editProductName" style="width:100%;padding:8px;background:#222;border:1px solid #666;color:#aaa;" readonly>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label>功能/描述</label>
+                    <input type="text" id="editProductDesc" style="width:100%;padding:8px;background:#222;border:1px solid #666;color:#aaa;" readonly>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label>积分价格</label>
+                    <input type="number" id="editProductPrice" style="width:100%;padding:8px;background:#1a1a1a;border:1px solid #00ff88;color:#fff;">
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label>库存数量</label>
+                    <input type="number" id="editProductStock" style="width:100%;padding:8px;background:#1a1a1a;border:1px solid #00ff88;color:#fff;">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="tool-button" onclick="saveEditProduct()">保存</button>
+                <button class="tool-button" onclick="closeModal('editProductModal')">取消</button>
+            </div>
+        </div>
+    </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="tool-button" onclick="closeModal('shopModal')">关闭</button>
+            </div>
+        </div>
+    </div>
+    <!-- 上架商品弹窗 -->
+    <div id="addProductModal" class="modal">
+        <div class="modal-content" style="min-width:400px;">
+            <h2 class="modal-title">上架新商品</h2>
+            <div class="modal-body">
+                <div style="margin-bottom:15px;">
+                    <label>商品名称</label>
+                    <input type="text" id="productName" style="width:100%;padding:8px;background:#1a1a1a;border:1px solid #00ff88;color:#fff;">
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label>功能/描述</label>
+                    <input type="text" id="productDesc" style="width:100%;padding:8px;background:#1a1a1a;border:1px solid #00ff88;color:#fff;" placeholder="如：提升属性、特殊效果等">
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label>积分价格</label>
+                    <input type="number" id="productPrice" style="width:100%;padding:8px;background:#1a1a1a;border:1px solid #00ff88;color:#fff;">
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label>库存数量</label>
+                    <input type="number" id="productStock" style="width:100%;padding:8px;background:#1a1a1a;border:1px solid #00ff88;color:#fff;">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="tool-button" onclick="addProduct()">确认上架</button>
+                <button class="tool-button" onclick="closeModal('addProductModal')">取消</button>
+            </div>
+        </div>
+    </div>
+    <!-- 其它弹窗如任务编辑器、时间锚点、系统日志等由JS动态创建 -->
+    <!-- 记忆编辑弹窗 -->
+    <div id="memoryEditModal" class="modal">
+        <div class="modal-content" style="min-width:400px;">
+            <h2 class="modal-title">记忆编辑</h2>
+            <div class="modal-body">
+                <div style="margin-bottom:15px;">
+                    <label>选择NPC</label>
+                    <select id="memoryNpc" style="width:100%;padding:8px;background:#1a1a1a;border:1px solid #00ff88;color:#fff;">
+                        <option value="李长风">李长风</option>
+                        <option value="赵明">赵明</option>
+                        <option value="主角">主角</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label>记忆内容</label>
+                    <textarea id="memoryContent" style="width:100%;height:80px;padding:8px;background:#1a1a1a;border:1px solid #00ff88;color:#fff;" placeholder="请输入要编辑的记忆内容"></textarea>
+                </div>
+                <div style="color:#ffaa00;font-size:13px;margin-bottom:10px;">
+                    消耗：<span id="memoryEditCost"></span> 积分
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="tool-button" onclick="memoryEditSave()">保存</button>
+                <button class="tool-button" onclick="closeModal('memoryEditModal')">取消</button>
+            </div>
+        </div>
+    </div>
+<!-- 已删除多余的重复记忆编辑弹窗，避免id冲突和结构混乱 -->
+    <script>
+    // 系统等级（可根据实际情况动态赋值）
+    let systemLevel = 3; // 例：3级，后续可接入实际等级
+
+    // 获取折扣后积分
+    function getDiscountedCost(baseCost) {
+        if (systemLevel >= 10) return Math.floor(baseCost * 0.5);
+        if (systemLevel >= 7) return Math.floor(baseCost * 0.7);
+        if (systemLevel >= 5) return Math.floor(baseCost * 0.8);
+        if (systemLevel >= 3) return Math.floor(baseCost * 0.9);
+        return baseCost;
+    }
+
+    // 动态刷新系统干预消耗显示
+    function updateInterventionCosts() {
+        if(document.getElementById('hintCost')) {
+            document.getElementById('hintCost').textContent = '消耗: ' + getDiscountedCost(100) + '积分';
+        }
+        if(document.getElementById('truthCost')) {
+            document.getElementById('truthCost').textContent = '消耗: ' + getDiscountedCost(500) + '积分 | 反噬+10';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        updateInterventionCosts();
+    });
+
+    // 系统干预功能实现
+    function provideHint() {
+        const cost = getDiscountedCost(100);
+        if(confirm(`确定消耗${cost}积分提供提示？`)) {
+            if(typeof updatePoints === 'function') updatePoints(-cost);
+            alert('已为主角提供提示！');
+        }
+    }
+    function revealTruth() {
+        const cost = getDiscountedCost(500);
+        if(confirm(`确定消耗${cost}积分并增加10反噬揭示真相？`)) {
+            if(typeof updatePoints === 'function') updatePoints(-cost);
+            if(typeof updateBacklash === 'function') updateBacklash(10);
+            alert('真相已揭示！');
+        }
+    }
+    function memoryEdit() {
+        const cost = getDiscountedCost(2000);
+        if(confirm(`确定消耗${cost}积分进行记忆编辑？`)) {
+            if(typeof updatePoints === 'function') updatePoints(-cost);
+            alert('记忆编辑已执行（演示效果）');
+        }
+    }
+    function timeRewind() {
+        const cost = getDiscountedCost(5000);
+        if(confirm(`确定消耗${cost}积分进行时光回溯？`)) {
+            if(typeof updatePoints === 'function') updatePoints(-cost);
+            alert('时光回溯已执行（演示效果）');
+        }
+    }
+    function materialize() {
+        const cost = getDiscountedCost(10000);
+        if(confirm(`确定消耗${cost}积分进行实体化？`)) {
+            if(typeof updatePoints === 'function') updatePoints(-cost);
+            alert('实体化已执行（演示效果）');
+        }
+    }
+
+    // 覆盖暂停时间功能消耗
+    function pauseTime() {
+        const cost = getDiscountedCost(300);
+        if(confirm(`暂停时间将消耗${cost}积分，持续10秒。确定吗？`)) {
+            document.body.style.filter = 'grayscale(50%)';
+            var sceneWin = document.querySelector('.scene-window');
+            if(sceneWin) sceneWin.style.opacity = '0.5';
+
+            // 显示暂停提示
+            const pauseIndicator = document.createElement('div');
+            pauseIndicator.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 48px;
+                color: #00ff88;
+                text-shadow: 0 0 20px #00ff88;
+                z-index: 9999;
+            `;
+            pauseIndicator.textContent = '⏸ 时间暂停中';
+            document.body.appendChild(pauseIndicator);
+
+            // 10秒后恢复
+            setTimeout(() => {
+                document.body.style.filter = '';
+                if(sceneWin) sceneWin.style.opacity = '1';
+                pauseIndicator.remove();
+            }, 10000);
+
+            if(typeof updatePoints === 'function') {
+                updatePoints(-cost);
+            }
+        }
+    }
+        // tab切换
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    const tab = this.getAttribute('data-tab');
+                    document.querySelectorAll('.tab-panel').forEach(panel => {
+                        panel.style.display = (panel.getAttribute('data-tab') === tab) ? 'block' : 'none';
+                    });
+                });
+            });
+            // 初始化商城商品渲染
+            renderShopItems();
+        });
+
+        // 商城商品数据（初始商品）
+        let shopProducts = [
+            { name: '洞察符', desc: '查看NPC好感度', price: 500, stock: 99, color: '#00ff88', border: '#00ff88', bg: 'rgba(0,255,136,0.1)' },
+            { name: '记忆模糊丹', desc: '让NPC忘记一件小事', price: 2000, stock: 50, color: '#00ff88', border: '#00ff88', bg: 'rgba(0,255,136,0.1)' },
+            { name: '命运偏移卡', desc: '改变一次剧情走向', price: 10000, stock: 1, color: '#ff6666', border: '#ff6666', bg: 'rgba(255,100,100,0.1)', locked: true }
+        ];
+
+        // 渲染商城商品
+        function renderShopItems() {
+            const shopGrid = document.querySelector('#shopModal .modal-body > div[style*="grid"]');
+            if (!shopGrid) return;
+            shopGrid.innerHTML = '';
+            shopProducts.forEach((item, idx) => {
+                let html = `
+                <div class="shop-item" style="background:${item.bg};padding:15px;border:1px solid ${item.border};border-radius:5px;">
+                    <h4 style="color:${item.color};">${item.name}</h4>
+                    <p style="font-size:14px;margin:10px 0;">${item.desc || ''}</p>
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span>${item.price}积分${typeof item.stock === 'number' ? ` | 库存:${item.stock}` : ''}</span>
+                        ${
+                            item.locked
+                            ? `<button class="tool-button locked" style="padding:5px 10px;">未解锁</button>`
+                            : `<button class="tool-button" style="padding:5px 10px;" onclick="editProduct(${idx})">编辑</button>`
+                        }
+                    </div>
+                </div>
+                `;
+                shopGrid.insertAdjacentHTML('beforeend', html);
+            });
+        }
+
+        // 显示上架商品弹窗
+        function showAddProductModal() {
+            document.getElementById('addProductModal').style.display = 'block';
+        }
+
+        // 编辑商品弹窗
+        let editingProductIndex = null;
+        function editProduct(idx) {
+            editingProductIndex = idx;
+            const item = shopProducts[idx];
+            document.getElementById('editProductName').value = item.name;
+            document.getElementById('editProductDesc').value = item.desc || '';
+            document.getElementById('editProductPrice').value = item.price;
+            document.getElementById('editProductStock').value = typeof item.stock === 'number' ? item.stock : '';
+            document.getElementById('editProductModal').style.display = 'block';
+        }
+        function saveEditProduct() {
+            if (editingProductIndex === null) return;
+            const price = parseInt(document.getElementById('editProductPrice').value);
+            const stock = parseInt(document.getElementById('editProductStock').value);
+            if (isNaN(price) || price <= 0 || isNaN(stock) || stock < 0) {
+                alert('请输入有效的价格和库存');
+                return;
+            }
+            shopProducts[editingProductIndex].price = price;
+            shopProducts[editingProductIndex].stock = stock;
+            renderShopItems();
+            closeModal('editProductModal');
+        }
+
+        // 添加新商品
+        function addProduct() {
+            const name = document.getElementById('productName').value.trim();
+            const desc = document.getElementById('productDesc').value.trim();
+            const price = parseInt(document.getElementById('productPrice').value);
+            const stock = parseInt(document.getElementById('productStock').value);
+            if (!name || isNaN(price) || isNaN(stock) || price <= 0 || stock < 0) {
+                alert('请填写完整且有效的商品信息');
+                return;
+            }
+            shopProducts.push({
+                name,
+                desc,
+                price,
+                stock,
+                color: '#00ff88',
+                border: '#00ff88',
+                bg: 'rgba(0,255,136,0.1)'
+            });
+            renderShopItems();
+            closeModal('addProductModal');
+        }
+
+        // 弹窗交互
+        function showInfoControl() {
+            document.getElementById('infoControlModal').style.display = 'block';
+        }
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        function openShop() {
+            document.getElementById('shopModal').style.display = 'block';
+            renderShopItems();
+        }
+        // 其它弹窗和交互函数请参考副本文件，已同步
+        // ...（其余JS函数完整保留，不能省略）...
+// 隐藏真相
+function hideInfo() {
+    alert('你选择隐藏部分真相，主角将无法获知关键线索。\n\n信任度-3，反噬值+5');
+    if(typeof updateTrust === 'function') updateTrust(-3);
+    if(typeof updateBacklash === 'function') updateBacklash(5);
+}
+
+// 误导主角
+function mislead() {
+    alert('你选择误导主角，剧情将偏离原有轨迹。\n\n信任度-8，反噬值+10');
+    if(typeof updateTrust === 'function') updateTrust(-8);
+    if(typeof updateBacklash === 'function') updateBacklash(10);
+}
+
+// 保持沉默
+function staySilent() {
+    alert('你选择保持沉默，主角将自行摸索。\n\n无消耗');
+}
+// 确认透露信息
+function confirmInfoReveal() {
+    const checkedBoxes = document.querySelectorAll('#infoControlModal input[type="checkbox"]:checked');
+    if(checkedBoxes.length === 0) {
+        alert('请至少选择一条信息');
+        return;
+    }
+    // 执行信息透露
+    let message = '【系统提示】\n';
+    checkedBoxes.forEach(box => {
+        switch(box.id) {
+            case 'info1':
+                message += '• 李长风看你的眼神有些异样，似乎在试探什么\n';
+                break;
+            case 'info2':
+                message += '• 掌门此次召见并非偶然，而是一次精心安排的试探\n';
+                break;
+            case 'info3':
+                message += '• 危险！掌门已经知道你身上有特殊之处\n';
+                break;
+            case 'info4':
+                message += '• 警告！宗门内部并不安全，有外敌潜伏\n';
+                break;
+        }
+    });
+    alert(message);
+    closeModal('infoControlModal');
+    // 更新界面状态
+    if(typeof updateTrust === 'function') updateTrust(5);
+    if(typeof updatePoints === 'function') updatePoints(-200);
+}
+// 改价功能
+// setPrice 已废弃，保留兼容但不再显示
+function setPrice(itemId) {
+    alert('请使用“编辑”按钮修改商品价格和库存');
+}
+
+// 限时优惠
+function createSale() {
+    alert('限时优惠已开启：所有商品价格减半（演示效果）');
+    document.querySelectorAll('.shop-item span').forEach(span => {
+        let val = parseInt(span.textContent);
+        if(!isNaN(val)) span.textContent = Math.floor(val / 2) + '积分';
+    });
+}
+
+// 隐藏部分商品
+function hideItems() {
+    alert('部分商品已隐藏（演示效果）');
+    const items = document.querySelectorAll('.shop-item');
+    if(items.length > 2) items[2].style.display = 'none';
+}
+
+// 制造缺货假象
+function createFakeUrgency() {
+    alert('制造缺货假象：部分商品显示“缺货”标签（演示效果）');
+    const items = document.querySelectorAll('.shop-item');
+    if(items.length > 1) {
+        let tag = document.createElement('span');
+        tag.textContent = '缺货';
+        tag.style.cssText = 'color:#ff4444;font-weight:bold;margin-left:10px;';
+        items[1].appendChild(tag);
+    }
+}
+// 暂停时间功能
+function pauseTime() {
+    if(confirm('暂停时间将消耗300积分，持续10秒。确定吗？')) {
+        document.body.style.filter = 'grayscale(50%)';
+        var sceneWin = document.querySelector('.scene-window');
+        if(sceneWin) sceneWin.style.opacity = '0.5';
+
+        // 显示暂停提示
+        const pauseIndicator = document.createElement('div');
+        pauseIndicator.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: #00ff88;
+            text-shadow: 0 0 20px #00ff88;
+            z-index: 9999;
+        `;
+        pauseIndicator.textContent = '⏸ 时间暂停中';
+        document.body.appendChild(pauseIndicator);
+
+        // 10秒后恢复
+        setTimeout(() => {
+            document.body.style.filter = '';
+            if(sceneWin) sceneWin.style.opacity = '1';
+            pauseIndicator.remove();
+        }, 10000);
+
+        if(typeof updatePoints === 'function') {
+            updatePoints(-300);
+        }
+    }
+}
+// 查看时间锚点
+function checkAnchors() {
+    const anchorModal = document.createElement('div');
+    anchorModal.className = 'modal';
+    anchorModal.style.display = 'block';
+    anchorModal.innerHTML = `
+        <div class="modal-content" style="min-width: 700px;">
+            <h2 class="modal-title">时间锚点管理</h2>
+            <div class="modal-body">
+                <div style="display: flex; gap: 20px; overflow-x: auto; padding: 20px 0;">
+                    <div class="time-anchor" style="min-width: 150px; text-align: center; cursor: pointer;" onclick="confirmRewind(1)">
+                        <div style="width: 100px; height: 100px; margin: 0 auto; background: rgba(0,255,136,0.2); border: 2px solid #00ff88; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 24px;">📍</span>
+                        </div>
+                        <h4 style="margin-top: 10px;">初入青云</h4>
+                        <p style="font-size: 12px; opacity: 0.7;">3天前</p>
+                        <p style="font-size: 12px; color: #ffaa00;">反噬值: +20</p>
+                    </div>
+                    <div class="time-anchor" style="min-width: 150px; text-align: center; cursor: pointer;" onclick="confirmRewind(2)">
+                        <div style="width: 100px; height: 100px; margin: 0 auto; background: rgba(0,255,136,0.2); border: 2px solid #00ff88; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 24px;">📍</span>
+                        </div>
+                        <h4 style="margin-top: 10px;">剑法显露</h4>
+                        <p style="font-size: 12px; opacity: 0.7;">1天前</p>
+                        <p style="font-size: 12px; color: #ffaa00;">反噬值: +10</p>
+                    </div>
+                    <div class="time-anchor current" style="min-width: 150px; text-align: center;">
+                        <div style="width: 100px; height: 100px; margin: 0 auto; background: rgba(255,255,0,0.2); border: 2px solid #ffff00; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 24px;">📌</span>
+                        </div>
+                        <h4 style="margin-top: 10px;">当前时间点</h4>
+                        <p style="font-size: 12px; opacity: 0.7;">现在</p>
+                    </div>
+                </div>
+                <div style="margin-top: 20px; padding: 15px; background: rgba(255,0,0,0.2); border-radius: 5px;">
+                    <strong>⚠️ 警告：</strong>时间回溯会留下痕迹，高感知NPC可能察觉异常。当前已回溯 <span style="color: #ff4444;">2</span> 次。
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="tool-button" onclick="this.closest('.modal').remove()">关闭</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(anchorModal);
+}
+
+// 确认时间回溯
+function confirmRewind(anchorId) {
+    if(confirm(`确定要回溯到这个时间点吗？\n\n这将：\n- 消耗大量积分\n- 增加世界反噬值\n- 可能被某些NPC察觉\n- 主角会保留部分记忆碎片`)) {
+        alert('时间回溯中...\n\n【系统日志】\n时间线重构完成\n检测到3个时间疤痕\n警告：天机阁可能已察觉异常');
+        if(typeof updateBacklash === 'function') {
+            updateBacklash(anchorId === 1 ? 20 : 10);
+        }
+    }
+}
+
+// 查看系统日志
+function viewLogs() {
+    const logModal = document.createElement('div');
+    logModal.className = 'modal';
+    logModal.style.display = 'block';
+    logModal.innerHTML = `
+        <div class="modal-content" style="min-width: 600px; max-height: 80vh; overflow-y: auto;">
+            <h2 class="modal-title">系统日志</h2>
+            <div class="modal-body">
+                <div style="font-family: monospace; font-size: 14px; line-height: 1.6;">
+                    <div class="log-entry" style="margin-bottom: 10px; padding: 10px; background: rgba(0,255,136,0.1);">
+                        <span style="color: #00ff88;">[10:23:45]</span> 系统启动，绑定主角：林凡
+                    </div>
+                    <div class="log-entry" style="margin-bottom: 10px; padding: 10px; background: rgba(0,200,255,0.1);">
+                        <span style="color: #00ccff;">[10:25:12]</span> 检测到关键剧情点：掌门召见
+                    </div>
+                    <div class="log-entry" style="margin-bottom: 10px; padding: 10px; background: rgba(255,170,0,0.1);">
+                        <span style="color: #ffaa00;">[10:25:33]</span> NPC李长风怀疑度上升至35%
+                    </div>
+                    <div class="log-entry" style="margin-bottom: 10px; padding: 10px; background: rgba(255,0,0,0.1);">
+                        <span style="color: #ff4444;">[10:26:01]</span> 警告：检测到魔门间谍活动
+                    </div>
+                    <div class="log-entry" style="margin-bottom: 10px; padding: 10px; background: rgba(0,255,136,0.1);">
+                        <span style="color: #00ff88;">[10:27:15]</span> 主角请求查看李长风属性 - 已响应
+                    </div>
+                    <div class="log-entry" style="margin-bottom: 10px; padding: 10px; background: rgba(255,255,0,0.1);">
+                        <span style="color: #ffff00;">[10:28:02]</span> 世界反噬值达到45，进入警戒状态
+                    </div>
+                    <div class="log-entry" style="margin-bottom: 10px; padding: 10px; background: rgba(255,0,255,0.1);">
+                        <span style="color: #ff00ff;">[10:28:45]</span> 天机阁开始扫描异常波动
+                    </div>
+                </div>
+                <div style="margin-top: 20px; display: flex; gap: 10px;">
+                    <button class="tool-button" onclick="filterLogs('all')">全部</button>
+                    <button class="tool-button" onclick="filterLogs('system')">系统操作</button>
+                    <button class="tool-button" onclick="filterLogs('world')">世界事件</button>
+                    <button class="tool-button" onclick="filterLogs('danger')">危险警告</button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="tool-button" onclick="exportLogs()">导出日志</button>
+                <button class="tool-button" onclick="this.closest('.modal').remove()">关闭</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(logModal);
+}
+
+// 日志筛选（占位，实际可扩展）
+function filterLogs(type) {
+    alert('筛选功能仅为演示，实际可根据type参数筛选日志内容');
+}
+
+// 导出日志（占位，实际可扩展）
+function exportLogs() {
+    alert('导出功能仅为演示，实际可将日志内容导出为文件');
+}
+// 创建任务
+function createTask() {
+    const taskModal = document.createElement('div');
+    taskModal.className = 'modal';
+    taskModal.style.display = 'block';
+    taskModal.innerHTML = `
+        <div class="modal-content" style="min-width: 500px;">
+            <h2 class="modal-title">任务编辑器</h2>
+            <div class="modal-body">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">任务名称（主角可见）</label>
+                    <input type="text" id="taskName" style="width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #00ff88; color: #fff;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">表面目标</label>
+                    <textarea id="taskGoal" style="width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #00ff88; color: #fff; height: 60px;"></textarea>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">真实目的（仅系统可见）</label>
+                    <textarea id="taskTrueGoal" style="width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #ff4444; color: #ff4444; height: 60px;"></textarea>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">奖励设置</label>
+                    <input type="text" id="taskReward" placeholder="积分数量" style="width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #00ff88; color: #fff;">
+                </div>
+                <div style="padding: 10px; background: rgba(255,170,0,0.2); border-radius: 5px;">
+                    <strong>隐藏后果：</strong>
+                    <select id="taskConsequence" style="background: #1a1a1a; color: #fff; padding: 5px; margin-left: 10px;">
+                        <option value="none">无</option>
+                        <option value="npc_doubt">增加NPC怀疑</option>
+                        <option value="trap">触发陷阱事件</option>
+                        <option value="faction_change">改变势力关系</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="tool-button" onclick="publishTask(this)">发布任务</button>
+                <button class="tool-button" onclick="this.closest('.modal').remove()">取消</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(taskModal);
+}
+
+// 发布任务
+function publishTask(button) {
+    const modal = button.closest('.modal');
+    const taskName = modal.querySelector('#taskName').value;
+    const taskGoal = modal.querySelector('#taskGoal').value;
+    if(!taskName || !taskGoal) {
+        alert('请填写任务名称和目标');
+        return;
+    }
+    alert(`任务"${taskName}"已发布给主角！`);
+    modal.remove();
+    // 在主界面显示新任务提示
+    showNotification('新任务已发布', 'task');
+}
+
+// 显示通知
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        padding: 15px 25px;
+        background: ${type === 'task' ? 'rgba(0,255,136,0.9)' : 'rgba(0,200,255,0.9)'};
+        color: #000;
+        border-radius: 5px;
+        font-weight: bold;
+        animation: slideIn 0.3s ease;
+        z-index: 1000;
+    `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 3000);
+}
+document.addEventListener('DOMContentLoaded', function() {
+   var btn = document.getElementById('memoryEditBtn');
+   if(btn) {
+       btn.onclick = function() {
+           var modal = document.getElementById('memoryEditModal');
+           if(modal) modal.style.display = 'block';
+       }
+   }
+});
+</script>
+</script>
+</body>
+</html>
